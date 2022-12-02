@@ -1,3 +1,4 @@
+from pathlib import Path
 import os
 import torch
 import numpy as np
@@ -14,18 +15,18 @@ class CustomImageDataset(Dataset):
         self.transform = transform
         self.target_ori_transform = target_ori_transform
 
-    def __len__(self): #check the size of the dataset
+    def __len__(self):
         return len(self.img_labels)
 
-    def __getitem__(self, idx): # read one image
+    def __getitem__(self, idx):
         img_path = os.path.join(self.img_dir, self.img_labels.iloc[idx, 0] + '.jpg')
         mask_path = os.path.join(self.mask_dir, self.img_labels.iloc[idx, 0] + '_segmentation.png')
         image = read_image(img_path)
         mask_ori = read_image(mask_path)
         mask_ori[mask_ori == 255] = 1
-        name = self.img_labels.iloc[idx, 0];
+        name = self.img_labels.iloc[idx, 0]
 
-        seed = np.random.randint(651998) # make a seed with numpy generator
+        seed = np.random.randint(654782)
         if self.transform:
             torch.manual_seed(seed)
             image = self.transform(image)
