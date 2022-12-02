@@ -28,12 +28,12 @@ def check_fov(img, threshold=40):
 
     Parameters
     ----------
-    img (numpy) Image data
-    threshold (int) threshold to detect the fov
+    img (numpy): Image data
+    threshold (int): threshold to detect the fov
 
     Returns
     -------
-    answer (bool) True if there is FOV False if not
+    answer (bool): True if there is FOV False if not
     """
     copy_img = img.copy()
     height, width, _ = copy_img.shape
