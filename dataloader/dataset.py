@@ -1,36 +1,31 @@
 from pathlib import Path
-import os
 import torch
 import numpy as np
 import pandas as pd
 from torchvision.io import read_image
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
+
+thispath = Path(__file__).resolve()
 
 
-class CustomImageDataset(Dataset):
-    def __init__(self, annotations_file, mask_dir, image_dir, transform=None, target_ori_transform=None):
-        self.img_labels = pd.read_csv(annotations_file)
-        self.mask_dir = mask_dir
-        self.img_dir = image_dir
+class SkinLesionDataset(Dataset):
+    def __init__(self, challenge_name, dataset_set, transform=None):
+        self.data_dir = thispath.parent.parent / "data" / challenge_name / dataset_set
+        self.metadata = pd.read_csv(self.data_dir.parent / f"Metadata_{challenge_name}.csv")
         self.transform = transform
-        self.target_ori_transform = target_ori_transform
+        self.dataset_set = dataset_set
 
     def __len__(self):
-        return len(self.img_labels)
+        return self.metadata['Set'].value_counts().str(self.dataset_set)
 
     def __getitem__(self, idx):
-        img_path = os.path.join(self.img_dir, self.img_labels.iloc[idx, 0] + '.jpg')
-        mask_path = os.path.join(self.mask_dir, self.img_labels.iloc[idx, 0] + '_segmentation.png')
-        image = read_image(img_path)
-        mask_ori = read_image(mask_path)
-        mask_ori[mask_ori == 255] = 1
-        name = self.img_labels.iloc[idx, 0]
+        image = read_image(self.data_dir / f"{self.metadata.loc[idx, 'Name']}.jpg")
+        label = self.metadata.loc[idx, 'Label']
+        name = self.metadata.loc[idx, 'Name']
 
         seed = np.random.randint(654782)
         if self.transform:
             torch.manual_seed(seed)
             image = self.transform(image)
-        if self.target_ori_transform:
-            torch.manual_seed(seed)
-            mask_ori = self.target_ori_transform(mask_ori)
-        return image, mask_ori, name
+
+        return image, label, name
