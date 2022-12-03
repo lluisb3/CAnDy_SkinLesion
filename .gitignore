@@ -1,5 +1,7 @@
 # Folders from project with big-size files
 data
+classification_binary/config.yml
+classification_multi/config.yml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
