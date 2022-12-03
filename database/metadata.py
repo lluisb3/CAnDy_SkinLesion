@@ -28,12 +28,12 @@ def metadata_creation(challenge_name):
     images_files_test = [i for i in datadir.rglob("*.jpg") if "test" in str(i)]
 
     if challenge_name == 'MulticlassClassification':
-        header = ['Name', 'Dataset', 'Lesion Type', 'Class(numerical)', 'Image Height(row)',
+        header = ['Name', 'Set', 'Lesion Type', 'Label', 'Image Height(row)',
                   'Image Width(col)', 'Min', 'Max', 'FOV presence', 'DataType']
         lesion_type = ['mel', 'bcc', 'scc']
 
     else:
-        header = ['Name', 'Dataset', 'Lesion Type', 'Lesion Subtype', 'Class(numerical)',
+        header = ['Name', 'Set', 'Lesion Type', 'Lesion Subtype', 'Label',
                   'Image Height(row)', 'Image Width(col)', 'Min', 'Max', 'FOV presence', 'DataType']
         lesion_type = ['nevus', 'others']
 
@@ -45,7 +45,7 @@ def metadata_creation(challenge_name):
                lesion_type.index(str(file.parent.stem)), skin_lesion.shape[0], skin_lesion.shape[1],
                np.min(skin_lesion), np.max(skin_lesion), check_fov(skin_lesion), skin_lesion.dtype]
         if challenge_name == 'BinaryClassification':
-            row.insert(3, file.stem [:3])
+            row.insert(3, file.stem[:3])
         csv_writer(datadir, f'Metadata_{challenge_name}.csv', 'a', row)
 
     for file in images_files_validation:
@@ -67,7 +67,3 @@ def metadata_creation(challenge_name):
         csv_writer(datadir, f'Metadata_{challenge_name}.csv', 'a', row)
 
     print(f'Metadata csv created at {datadir}')
-
-
-if __name__ == "__main__":
-    metadata_creation('')
