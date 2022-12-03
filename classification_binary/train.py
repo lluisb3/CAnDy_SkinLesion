@@ -1,6 +1,6 @@
-import torch
 import yaml
 from pathlib import Path
+
 
 def train():
     thispath = Path(__file__).resolve()
