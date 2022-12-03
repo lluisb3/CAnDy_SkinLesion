@@ -19,13 +19,13 @@ class SkinLesionDataset(Dataset):
         return self.metadata['Set'].value_counts().str(self.dataset_set)
 
     def __getitem__(self, idx):
-        sample = {}
-        image = read_image(self.data_dir / f"{self.metadata['Name'].iloc[idx]}.jpg")
-        sample['label'] = self.metadata['Label'].iloc[idx]
+        sample = {'image': read_image(str(self.data_dir / f"{self.metadata['Lesion Type'].iloc[idx]}/"
+                                                          f"{self.metadata['Name'].iloc[idx]}.jpg")),
+                  'label': self.metadata['Label'].iloc[idx]}
 
         seed = np.random.randint(654782)
         if self.transform:
             torch.manual_seed(seed)
-            image = self.transform(image)
+            image = self.transform(sample['image'])
 
         return sample
