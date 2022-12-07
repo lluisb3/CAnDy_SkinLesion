@@ -2,6 +2,7 @@ from pathlib import Path
 import cv2 as cv
 from utils import csv_writer, check_fov
 import numpy as np
+from tqdm import tqdm
 
 thispath = Path(__file__).resolve()
 
@@ -39,7 +40,7 @@ def metadata_creation(challenge_name):
 
     csv_writer(datadir, f'Metadata_{challenge_name}.csv', 'w', header)
 
-    for file in images_files_train:
+    for i, file in zip(tqdm(range(len(images_files_train)), desc='Train files'), images_files_train):
         skin_lesion = cv.imread(str(file))
         row = [file.stem, file.parent.parent.stem, file.parent.stem,
                lesion_type.index(str(file.parent.stem)), skin_lesion.shape[0], skin_lesion.shape[1],
@@ -48,7 +49,7 @@ def metadata_creation(challenge_name):
             row.insert(3, file.stem[:3])
         csv_writer(datadir, f'Metadata_{challenge_name}.csv', 'a', row)
 
-    for file in images_files_validation:
+    for i, file in zip(tqdm(range(len(images_files_validation)), desc='Validation files'), images_files_validation):
         skin_lesion = cv.imread(str(file))
         row = [file.stem, file.parent.parent.stem, file.parent.stem,
                lesion_type.index(str(file.parent.stem)), skin_lesion.shape[0], skin_lesion.shape[1],
@@ -57,7 +58,7 @@ def metadata_creation(challenge_name):
             row.insert(3, file.stem[:3])
         csv_writer(datadir, f'Metadata_{challenge_name}.csv', 'a', row)
 
-    for file in images_files_test:
+    for i, file in zip(tqdm(range(len(images_files_test)), desc='Test files'), images_files_test):
         skin_lesion = cv.imread(str(file))
         row = [file.stem, file.parent.parent.stem,'-', '-',
                skin_lesion.shape[0], skin_lesion.shape[1], np.min(skin_lesion), np.max(skin_lesion),
