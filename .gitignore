@@ -2,7 +2,7 @@
 data
 classification_binary/config.yml
 classification_multi/config.yml
-
+trash.py
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
