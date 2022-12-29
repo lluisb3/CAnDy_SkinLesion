@@ -2,7 +2,6 @@ from pathlib import Path
 import pandas as pd
 import cv2 as cv
 from utils import z_score_norm
-from torchvision import transforms
 from torch.utils.data import Dataset
 
 thispath = Path(__file__).resolve()

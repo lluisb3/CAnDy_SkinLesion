@@ -1,14 +1,13 @@
 # Main .py file to run the project
 from pathlib import Path
 import torch
-import cv2
 from matplotlib import pyplot as plt
 
 thispath = Path(__file__).resolve()
 
 import sys
 from torchvision import transforms
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 from classification_multi import model_option
 
 
