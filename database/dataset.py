@@ -25,7 +25,6 @@ class SkinLesionDataset(Dataset):
         img = cv.imread(str(self.data_dir / f"{self.metadata['Lesion Type'].iloc[idx]}/"
                          f"{self.metadata['Name'].iloc[idx]}.jpg"))  # read the image (BGR) using OpenCV (HxWxC)
         img = cv.cvtColor(img, cv.COLOR_BGR2RGB)  # image now RGB
-        img = transforms.ToTensor()(img)
         if self.transform:
             img = z_score_norm(img,
                                mean=self.mean,
