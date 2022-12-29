@@ -22,8 +22,6 @@ def get_mean_and_std(dataset_):
 
 
 if __name__ == '__main__':
-
-    #transform_train = transforms.Compose([transforms.ToTensor()])
     train_dataset = SkinLesionDataset('MulticlassClassification', 'train')
     mean_train, std_train = get_mean_and_std(train_dataset)
     print('For the Multiclass Classification Challenge:')
