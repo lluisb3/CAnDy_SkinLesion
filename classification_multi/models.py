@@ -2,7 +2,7 @@ import torch
 import torchvision.models as models
 
 
-def model_option(model_name, num_classes, use_pretrained=True, freeze=False):
+def model_option(model_name, num_classes=3, use_pretrained=True, freeze=False):
     # Initialize these variables which will be set in this if statement. Each of these
     # variables is model specific.
     net = None

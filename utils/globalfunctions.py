@@ -43,6 +43,44 @@ def check_fov(img, threshold=40):
     bottom_left_corner = np.mean(gray_img[height - 5:height, 0:5])
     bottom_right_corner = np.mean(gray_img[height - 5:height, width - 5:width])
 
-    # Check if there is FOV in at least 3 corners and return true if so and false if not
+
+    # Check if there is FOV in at least 3 corners
     return int(top_left_corner < threshold) + int(top_right_corner < threshold) + int(bottom_left_corner < threshold) \
            + int(bottom_right_corner < threshold) > 2
+
+
+def get_fov(img):
+    """
+        This function returns a binary image with values =0 in the pixels with low intensities (as the FOV)
+        :param img:  image with FOV
+        ---------------
+        :return thresh1: FOV with values of 0, the image with values of 1
+    """
+    copy = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    ret, thresh = cv.threshold(copy, 15, 255, cv.THRESH_BINARY)
+    kernel = np.ones((35, 35), np.uint8)
+    tresh = cv.dilate(thresh,kernel,iterations = 3)
+    thresh[thresh == 255] = 1
+
+    return thresh
+
+
+def z_score_norm(img, mean=None, std=None, only_non_zero=False):
+    if mean is None:
+        if only_non_zero:
+            mask = get_fov(np.asarray(img))
+            imgcopy = img.copy().astype('float32')
+            imgcopy[mask == 0] = np.nan
+            mean = np.nanmean(imgcopy, axis=(0, 1))
+        else:
+            mean = img.mean(axis=(0, 1))
+    if std is None:
+        if only_non_zero:
+            mask = get_fov(img)
+            imgcopy = img.copy().astype('float32')
+            imgcopy[mask == 0] = np.nan
+            std = np.nanstd(imgcopy, axis=(0, 1))
+        else:
+            std = img.std(axis=(0, 1))
+    img = (img - mean) / std
+    return img.astype('float32')

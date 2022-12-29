@@ -3,6 +3,7 @@ import cv2 as cv
 from utils import csv_writer, check_fov
 import numpy as np
 from tqdm import tqdm
+import click
 
 thispath = Path(__file__).resolve()
 
@@ -68,3 +69,17 @@ def metadata_creation(challenge_name):
         csv_writer(datadir, f'Metadata_{challenge_name}.csv', 'a', row)
 
     print(f'Metadata csv created at {datadir}')
+
+
+@click.command()
+@click.option(
+    "--challenge_option",
+    default=None,
+    help="name of challenge to create the metadata for; MulticlassClassification or BinaryClassification",
+)
+def main(challenge_option):
+    metadata_creation(challenge_option)
+
+
+if __name__ == '__main__':
+    main()
