@@ -1,10 +1,7 @@
-import torch
-from torch.utils.data import DataLoader
 from database import SkinLesionDataset
-from torchvision import transforms
 from utils import csv_writer
 from pathlib import Path
-import numpy as np
+
 
 thispath = Path(__file__).resolve()
 
