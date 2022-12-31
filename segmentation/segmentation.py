@@ -7,7 +7,7 @@ from torchvision.io import read_image
 from tqdm import tqdm
 from segmentation import UNet, transform_segment, store
 
-thispath = Path.cwd().resolve().parent
+thispath = Path.cwd().resolve()
 
 
 def segment(dataset_option):
@@ -36,6 +36,7 @@ def segment(dataset_option):
 
     net.to(device)
     net.eval()
+    transform = transform_segment()
 
     datadir = Path(thispath / "data" / dataset_option)
 
@@ -52,13 +53,13 @@ def segment(dataset_option):
             image = read_image(str(nevus_image))
 
             # Transform
-            input = transform_segment(image)
-            input = torch.unsqueeze(input, dim=0)
+            input_image = transform(image)
+            input_image = torch.unsqueeze(input_image, dim=0)
             # Move data to device
-            input = input.to(device, non_blocking=True)
+            input_image = input_image.to(device, non_blocking=True)
 
             # Forward pass
-            output = net(input)
+            output = net(input_image)
             output_binary = torch.round(output)
 
             # Resize outputs to original size
@@ -68,7 +69,7 @@ def segment(dataset_option):
 
             # Store predictions
             name = nevus_image.stem
-            output_dir = Path(datadir / "train_seg" / "nevus")
+            output_dir = Path(datadir / "train_seg" / "nevus_prueba")
             Path(output_dir).mkdir(exist_ok=True, parents=True)
             store(output_binary_original_size, name, output_dir)
 
@@ -77,14 +78,14 @@ def segment(dataset_option):
             image = read_image(str(other_image))
 
             # Transform
-            input = transform_segment(image)
-            input = torch.unsqueeze(input, dim=0)
+            input_image = transform(image)
+            input_image = torch.unsqueeze(input_image, dim=0)
 
             # Move data to device
-            input = input.to(device, non_blocking=True)
+            input_image = input_image.to(device, non_blocking=True)
 
             # Forward pass
-            output = net(input)
+            output = net(input_image)
             output_binary = torch.round(output)
 
             # Resize outputs to original size
@@ -94,7 +95,7 @@ def segment(dataset_option):
 
             # Store predictions
             name = other_image.stem
-            output_dir = Path(datadir / "train_seg" / "others")
+            output_dir = Path(datadir / "train_seg" / "others_prueba")
             Path(output_dir).mkdir(exist_ok=True, parents=True)
             store(output_binary_original_size, name, output_dir)
 

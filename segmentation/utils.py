@@ -34,6 +34,8 @@ def transform_segment():
                                     transforms.Normalize(mean=[mu_train_r, mu_train_g, mu_train_b],
                                                          std=[std_train_r, std_train_g, std_train_b])])
 
+    return transform
+
 
 def store(image, name, output_path):
     # path_images: where the images are to get the name
