@@ -4,6 +4,9 @@ from collections import OrderedDict
 
 
 class UNet(nn.Module):
+    """
+    Creates a UNet object with the skeleton of the trained U-Net with the weights that are loaded in the segmentation.py
+    """
 
     def __init__(self, in_channels=3, out_channels=1, init_features=32):
         super(UNet, self).__init__()

@@ -11,10 +11,17 @@ class Convert(object):
 
 
 def transform_segment():
-    # Resize image paramenter
+    """
+    Creates a transformation object ready to be applied to a given image to meet the requirements
+    for the U-Net segmentation.
+    Returns
+    -------
+    The transformation object with the necessary conversion toTensor, Resize and Normalization.
+    """
+    # Resize image parameter to network requisite input size
     resize_param = [256, 320]
 
-    # Train set statistics
+    # Train set statistics for Normalization
     mu_train_r = 180.514
     mu_train_b = 139.454
     mu_train_g = 150.850
@@ -30,9 +37,18 @@ def transform_segment():
 
 
 def store(image, name, output_path):
-    # path_images: where the images are to get the name
-    # images: images you want to save
-    # output_path: path to save the images
+    """
+
+    Parameters
+    ----------
+    image: image to be stored
+    name: name of the output image
+    output_path: directory of the output image
+
+    Returns
+    -------
+    Save the image in the desired folder
+    """
     image = torch.squeeze(image)
     image[image == 1] = 255
     name = f"{name}_seg.png"

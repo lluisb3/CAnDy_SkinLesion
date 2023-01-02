@@ -11,7 +11,18 @@ thispath = Path(__file__).resolve().parent.parent
 
 
 def segment(dataset_option, subdataset_option):
+    """
+    Perform the segmentation of the Skin Lesion images of a desired dataset and sub-dataset.
+    Parameters
+    ----------
+    dataset_option: Chose the Skin Lesion dataset, as "BinaryClassification" or "MulticlassClassification".
+    subdataset_option Chose the sub-dataset, as "train" (train) or "val" (validation).
 
+    Returns
+    -------
+    In the folder dataset_option a folder called SUBDATASET_OPTION_seg saves all the segmentations contained in the
+    subdataset_option organized in the same folder structure.
+    """
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
     num_workers = os.cpu_count() - 6
