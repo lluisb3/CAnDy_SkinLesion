@@ -7,10 +7,10 @@ from torchvision.io import read_image
 from tqdm import tqdm
 from segmentation import UNet, transform_segment, store
 
-thispath = Path.cwd().resolve()
+thispath = Path(__file__).resolve().parent.parent
 
 
-def segment(dataset_option):
+def segment(dataset_option, subdataset_option):
 
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -20,96 +20,74 @@ def segment(dataset_option):
     print(f"Device: {device}")
 
     modelsdir = Path(thispath / "models")
-
-    experiment_ID_load = "Unet_Experiment_7.tar"
+    model_filename = "Unet_Experiment_7.tar"
 
     net = UNet()
-
-    checkpoint = torch.load(Path(modelsdir / experiment_ID_load), map_location=lambda storage, loc: storage)
-
+    checkpoint = torch.load(Path(modelsdir / model_filename), map_location=lambda storage, loc: storage)
     net.load_state_dict(checkpoint['net_state_dict'])
     valid_jacc_net = checkpoint['accuracy']
     train_jacc_net = checkpoint['accuracy_train']
 
-    print("Loaded pretrained U-net model for segmentation that reached jaccard of %.2f%% in validation and"
+    print("Loaded pretrained U-net model for SkinLesion segmentation that reached jaccard of %.2f%% in validation and"
           " %.2f%% in training." % (max(valid_jacc_net), max(train_jacc_net)))
 
     net.to(device)
     net.eval()
     transform = transform_segment()
 
-    datadir = Path(thispath / "data" / dataset_option)
+    datadir = Path(thispath / "data" / dataset_option / subdataset_option)
 
-    nevus_path = [i for i in datadir.rglob("*.jpg") if "train" in str(i)
-                  and "nevus" in str(i)]
-    others_path = [i for i in datadir.rglob("*.jpg") if "train" in str(i)
-                   and "others" in str(i)]
-    # Do not accumulate gradients
-    with torch.no_grad():
+    patients_lesion_all_types = [x.stem for x in datadir.iterdir() if x.is_dir()]
 
-        # test all batches
-        for nevus_image in tqdm(nevus_path):
+    for patients_lesion_type in patients_lesion_all_types:
 
-            image = read_image(str(nevus_image))
+        lesion_path = [i for i in datadir.rglob("*.jpg") if patients_lesion_type in str(i)]
 
-            # Transform
-            input_image = transform(image)
-            input_image = torch.unsqueeze(input_image, dim=0)
-            # Move data to device
-            input_image = input_image.to(device, non_blocking=True)
+        # Do not accumulate gradients
+        with torch.no_grad():
 
-            # Forward pass
-            output = net(input_image)
-            output_binary = torch.round(output)
+            # test all batches
+            for image in tqdm(lesion_path, desc=patients_lesion_type):
+                lesion_image = read_image(str(image))
 
-            # Resize outputs to original size
-            height = image.shape[1]
-            width = image.shape[2]
-            output_binary_original_size = transforms.functional.resize(output_binary, (height, width))
+                # Transform
+                input_image = transform(lesion_image)
+                input_image = torch.unsqueeze(input_image, dim=0)
+                # Move data to device
+                input_image = input_image.to(device, non_blocking=True)
 
-            # Store predictions
-            name = nevus_image.stem
-            output_dir = Path(datadir / "train_seg" / "nevus_prueba")
-            Path(output_dir).mkdir(exist_ok=True, parents=True)
-            store(output_binary_original_size, name, output_dir)
+                # Forward pass
+                output = net(input_image)
+                output_binary = torch.round(output)
 
-        # test all batches
-        for other_image in tqdm(others_path):
-            image = read_image(str(other_image))
+                # Resize outputs to original size
+                height = lesion_image.shape[1]
+                width = lesion_image.shape[2]
+                output_binary_original_size = transforms.functional.resize(output_binary, (height, width))
 
-            # Transform
-            input_image = transform(image)
-            input_image = torch.unsqueeze(input_image, dim=0)
-
-            # Move data to device
-            input_image = input_image.to(device, non_blocking=True)
-
-            # Forward pass
-            output = net(input_image)
-            output_binary = torch.round(output)
-
-            # Resize outputs to original size
-            height = image.shape[1]
-            width = image.shape[2]
-            output_binary_original_size = transforms.functional.resize(output_binary, (height, width))
-
-            # Store predictions
-            name = other_image.stem
-            output_dir = Path(datadir / "train_seg" / "others_prueba")
-            Path(output_dir).mkdir(exist_ok=True, parents=True)
-            store(output_binary_original_size, name, output_dir)
+                # Store predictions
+                name = image.stem
+                output_dir = Path(datadir.parent / f"{subdataset_option}_seg" / patients_lesion_type)
+                Path(output_dir).mkdir(exist_ok=True, parents=True)
+                store(output_binary_original_size, name, output_dir)
 
 
 @click.command()
 @click.option(
     "--dataset_option",
     default="BinaryClassification",
-    help=
-    "Chose the dataset to perform the segmentation with U-Net",
+    prompt="Chose the dataset to perform the segmentation with U-Net",
+    help="Chose the dataset to perform the segmentation with U-Net",
 )
-def main(dataset_option):
+@click.option(
+    "--subdataset_option",
+    default="train",
+    prompt="Chose the subdataset, train (train) or val (validation)",
+    help="Chose the subdataset to perform the segmentation with U-Net, train (train) or val (validation)",
+)
+def main(dataset_option, subdataset_option):
     # Perform the segmentations and save the results
-    segment(dataset_option)
+    segment(dataset_option, subdataset_option)
 
 
 if __name__ == "__main__":

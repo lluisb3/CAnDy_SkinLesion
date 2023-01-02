@@ -22,14 +22,6 @@ def transform_segment():
     std_train_b = 35.249
     std_train_g = 35.250
 
-    # train set statics this project
-    # mu_train_r=170.194
-    # mu_train_g=134.993
-    # mu_train_b=133.690
-    # std_train_r=57.254
-    # std_train_g=52.205
-    # std_train_b=55.213
-
     transform = transforms.Compose([Convert(), transforms.Resize(size=resize_param),
                                     transforms.Normalize(mean=[mu_train_r, mu_train_g, mu_train_b],
                                                          std=[std_train_r, std_train_g, std_train_b])])
