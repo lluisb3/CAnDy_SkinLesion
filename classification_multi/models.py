@@ -27,11 +27,11 @@ def model_option(model_name, num_classes, freeze=False, num_freezed_layers=0):
             net = set_parameter_requires_grad(net, num_freezed_layers)
 
         num_ftrs = net.fc.in_features  # 2048
-        net.fc = nn.Sequential(nn.Linear(num_ftrs, 500),
+        net.fc = nn.Sequential(nn.Linear(num_ftrs, num_ftrs // 4),
                                nn.ReLU(inplace=True),
-                               nn.Linear(500, 50),
+                               nn.Linear(num_ftrs // 4, num_ftrs // 8),
                                nn.ReLU(inplace=True),
-                               nn.Linear(50, num_classes))
+                               nn.Linear(num_ftrs // 8, num_classes))
         resize_param = 224
 
     elif model_name == "convnext":
@@ -42,11 +42,11 @@ def model_option(model_name, num_classes, freeze=False, num_freezed_layers=0):
             # Freezing the number of layers
             net.features = set_parameter_requires_grad(net.features, num_freezed_layers)
         num_ftrs = net.classifier[2].in_features  # 768
-        net.classifier[2] = nn.Sequential(nn.Linear(num_ftrs, 250),
+        net.classifier[2] = nn.Sequential(nn.Linear(num_ftrs, num_ftrs // 2),
                                           nn.ReLU(inplace=True),
-                                          nn.Linear(250, 50),
+                                          nn.Linear(num_ftrs // 2, num_ftrs // 4),
                                           nn.ReLU(inplace=True),
-                                          nn.Linear(50, num_classes))
+                                          nn.Linear(num_ftrs // 4, num_classes))
         resize_param = 224
 
     elif model_name == "swin":
@@ -57,11 +57,11 @@ def model_option(model_name, num_classes, freeze=False, num_freezed_layers=0):
             # Freezing the number of layers
             net = set_parameter_requires_grad(net, num_freezed_layers)
         num_ftrs = net.head.in_features  # 768
-        net.head = nn.Sequential(nn.Linear(num_ftrs, 250),
+        net.head = nn.Sequential(nn.Linear(num_ftrs, num_ftrs // 2),
                                  nn.ReLU(inplace=True),
-                                 nn.Linear(250, 50),
+                                 nn.Linear(num_ftrs // 2, num_ftrs // 4),
                                  nn.ReLU(inplace=True),
-                                 nn.Linear(50, num_classes))
+                                 nn.Linear(num_ftrs // 4, num_classes))
         resize_param = 224
 
     else:
