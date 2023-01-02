@@ -25,7 +25,8 @@ def main():
     model_arguments = cfg['model']
     net, resize_param = model_option(model_arguments['model_name'],
                                      model_arguments['num_classes'],
-                                     freeze=model_arguments['freeze_weights'])
+                                     freeze=model_arguments['freeze_weights'],
+                                     num_freezed_layers=model_arguments['num_frozen_layers'])
     # Data transformations
     DataAugmentation = transforms.RandomApply(torch.nn.ModuleList([transforms.RandomRotation(70),
                                                                    transforms.RandomVerticalFlip(),
