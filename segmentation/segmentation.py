@@ -87,14 +87,14 @@ def segment(dataset_option, subdataset_option):
 @click.option(
     "--dataset_option",
     default="BinaryClassification",
-    prompt="Chose the dataset to perform the segmentation with U-Net",
-    help="Chose the dataset to perform the segmentation with U-Net",
+    prompt="Choose the dataset to perform the segmentation with U-Net",
+    help="Choose the dataset to perform the segmentation with U-Net",
 )
 @click.option(
     "--subdataset_option",
     default="train",
-    prompt="Chose the subdataset, train (train) or val (validation)",
-    help="Chose the subdataset to perform the segmentation with U-Net, train (train) or val (validation)",
+    prompt="Choose the subdataset, train (train) or val (validation)",
+    help="Choose the subdataset to perform the segmentation with U-Net, train (train) or val (validation)",
 )
 def main(dataset_option, subdataset_option):
     # Perform the segmentations and save the results
