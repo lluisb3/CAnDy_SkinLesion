@@ -30,7 +30,7 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
     predictions = torch.zeros((len(train_dataset), 1), dtype=torch.int64)
     labels = torch.zeros((len(train_dataset), 1), dtype=torch.int64)
     # 1 epoch = 1 complete loop over the dataset
-    for batch in tqdm(train_dataloader, desc='Train'):
+    for i, (batch) in enumerate(tqdm(train_dataloader, desc='Train')):
         # get data from dataloader
         inputs, targets = batch['image'], batch['label']
         # move data to device
@@ -50,7 +50,13 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
 
         # get labels
         outputs_max = torch.argmax(outputs, dim=1)
-        # print(outputs_max)
+
+        #Log every 10 batches
+        if (i+1) % 10 == 0 or i == 0:
+            message =f"Batch {i+1}:  \n predictions:{outputs_max}" \
+                     f"\n groudtruth:{targets}"
+            logging.info(message)
+
         # accumulate outputs and target
         for output, target in zip(outputs_max, targets):
             predictions[sample_counter] = output
@@ -106,7 +112,7 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
                         encoding='utf-8',
                         level=logging.INFO,
                         handlers=[
-                            logging.FileHandler(exp_path/"debug.log"),
+                            logging.FileHandler(exp_path/"debug.log", mode='w'),
                             logging.StreamHandler()
                         ],
                         datefmt='%m/%d/%Y %I:%M:%S %p')
@@ -158,7 +164,7 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
         # LOG THE METRICS INTO TENSORBOARD!
         ##### do something
 
-        message = f"Epoch {epoch}: Train -- Avg Loss: {avg_loss:.4f} " \
+        message = f"Epoch {epoch+1}: Train -- Avg Loss: {avg_loss:.4f} " \
                   f"Acc: {metrics_train['accuracy']:.4f} " \
                   f"BMA: {metrics_train['bma']:.4f}, Kappa:{metrics_train['kappa']:.4f}"
         logging.info(message)
@@ -173,7 +179,7 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
         # LOG THE METRICS INTO TENSORBOARD!
         ##### do something
 
-        message = f"Epoch {epoch}: Val -- Avg Loss: {avg_loss:.4f} " \
+        message = f"Epoch {epoch+1}: Val -- Avg Loss: {avg_loss:.4f} " \
                   f"Acc: {metrics_val['accuracy']:.4f} " \
                   f"BMA: {metrics_val['bma']:.4f}, Kappa:{metrics_val['kappa']:.4f}"
         logging.info(message)
@@ -259,10 +265,15 @@ def main():
                                   num_workers=dataset_arguments['num_workers'],
                                   pin_memory=True)
     dataloaders = {'train': dataloader_train, 'val': dataloader_valid}
-    # loss function
-    # Optimizer
-    criterion = getattr(torch.nn, cfg['training']['criterion'])()
 
+    # loss function
+    if cfg['training']['criterion_args'].get('weight') is not None:
+        cfg['training']['criterion_args']['weight'] = torch.tensor(cfg['training']['criterion_args']['weight'],
+                                                                   dtype=torch.float,
+                                                                   device=device)
+    criterion = getattr(torch.nn, cfg['training']['criterion'])(**cfg['training']['criterion_args'])
+
+    # Optimizer
     optimizer = getattr(torch.optim, cfg['training']['optimizer'])
     optimizer = optimizer(net.parameters(), **cfg['training']['optimizer_args'])
 
@@ -271,7 +282,6 @@ def main():
     # **d means "treat the key-value pairs in the dictionary as additional named arguments to this function call."
 
     train(net, datasets, dataloaders, criterion, optimizer, scheduler, cfg)
-
 
 if __name__ == '__main__':
     main()
