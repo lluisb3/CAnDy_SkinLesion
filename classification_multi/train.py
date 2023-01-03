@@ -3,13 +3,14 @@ import time
 import random
 import torch
 import numpy as np
-from sklearn.metrics import balanced_accuracy_score
+from metrics import metrics_function
 from torch.utils.data import DataLoader
 import yaml
 from pathlib import Path
 from database import SkinLesionDataset
 from classification_multi import model_option
 from torchvision import transforms
+from tqdm import tqdm
 
 # from torch.utils.tensorboard import SummaryWriter
 
@@ -19,8 +20,6 @@ thispath = Path(__file__).resolve()
 selected_gpu = 2  # here you select the GPU used (0, 1 or 2)
 device = torch.device("cuda:" + str(selected_gpu) if
                       torch.cuda.is_available() else "cpu")
-logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', encoding='utf-8',
-                    level=logging.INFO, datefmt='%m/%d/%Y %I:%M:%S %p')
 
 
 def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, scheduler):
@@ -31,7 +30,7 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
     predictions = torch.zeros((len(train_dataset), 1), dtype=torch.int64)
     labels = torch.zeros((len(train_dataset), 1), dtype=torch.int64)
     # 1 epoch = 1 complete loop over the dataset
-    for batch in train_dataloader:
+    for batch in tqdm(train_dataloader, desc='Train'):
         # get data from dataloader
         inputs, targets = batch['image'], batch['label']
         # move data to device
@@ -51,7 +50,7 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
 
         # get labels
         outputs_max = torch.argmax(outputs, dim=1)
-
+        # print(outputs_max)
         # accumulate outputs and target
         for output, target in zip(outputs_max, targets):
             predictions[sample_counter] = output
@@ -73,7 +72,7 @@ def val_1_epoch(net, val_dataset, val_dataloader, criterion):
     # do not accumulate gradients (faster)
     with torch.no_grad():
         # 1 epoch = 1 complete loop over the dataset
-        for batch in val_dataloader:
+        for batch in tqdm(val_dataloader,desc='Val'):
             # get data from dataloader
             inputs, targets = batch['image'], batch['label']
             # move data to device
@@ -95,9 +94,22 @@ def val_1_epoch(net, val_dataset, val_dataloader, criterion):
 
 
 def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler, cfg):
-    # For logging
+
     exp_path = thispath.parent.parent / f'models/MulticlassClassification/{cfg["experiment_name"]}'
     exp_path.mkdir(exist_ok=True, parents=True)
+    # save config file in exp_path
+    with open(Path(f"{exp_path}/config_{cfg['experiment_name']}.yml"), 'w') as yaml_file:
+        yaml.dump(cfg, yaml_file, default_flow_style=False)
+
+    # For logging
+    logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s',
+                        encoding='utf-8',
+                        level=logging.INFO,
+                        handlers=[
+                            logging.FileHandler(exp_path/"debug.log"),
+                            logging.StreamHandler()
+                        ],
+                        datefmt='%m/%d/%Y %I:%M:%S %p')
 
     # For reproducibility
     since = time.time()
@@ -108,7 +120,6 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
     # holders for best model
     best_metric = 0.0
     best_epoch = 0
-    early_stopping_count = 0
     previous_loss = 0
     previous_mean_loss = 0
     best_metric_name = cfg['training']['best_metric']
@@ -143,13 +154,13 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
                                                              scheduler
                                                              )
         # Get the metrics with the predictions and the labels
-        # metrics_train = metrics_dl(net_predictions,gt_labels)
+        metrics_train = metrics_function(gt_labels, net_predictions)
         # LOG THE METRICS INTO TENSORBOARD!
         ##### do something
 
         message = f"Epoch {epoch}: Train -- Avg Loss: {avg_loss:.4f} " \
                   f"Acc: {metrics_train['accuracy']:.4f} " \
-                  f"BMA: {metrics_train['BMA']:.4f}, Kappa:{metrics_train['kappa']:.4f}"
+                  f"BMA: {metrics_train['bma']:.4f}, Kappa:{metrics_train['kappa']:.4f}"
         logging.info(message)
 
         # Validation of current network
@@ -158,13 +169,13 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
                                                            skin_dataloaders['val'],
                                                            criterion)
         # Get the metrics with the predictions and the labels
-        # metrics_val = metrics_dl(net_predictions,gt_labels)
+        metrics_val = metrics_function(gt_labels, net_predictions)
         # LOG THE METRICS INTO TENSORBOARD!
         ##### do something
 
         message = f"Epoch {epoch}: Val -- Avg Loss: {avg_loss:.4f} " \
                   f"Acc: {metrics_val['accuracy']:.4f} " \
-                  f"BMA: {metrics_val['BMA']:.4f}, Kappa:{metrics_val['kappa']:.4f}"
+                  f"BMA: {metrics_val['bma']:.4f}, Kappa:{metrics_val['kappa']:.4f}"
         logging.info(message)
 
         # save last checkpoint
@@ -189,7 +200,12 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
                 'metrics_train': metrics_train,
                 'configuration': cfg
             }, best_model_path)
-
+    time_elapsed = time.time() - since
+    message = f'Training complete in {(time_elapsed // 60):.0f}m ' \
+              f'{(time_elapsed % 60):.0f}s'
+    logging.info(message)
+    logging.info(f'Best val {best_metric_name}: {best_metric:4f}, avgPR {best_BMA:.4f}, '
+                 f'threshold {best_acc:.4f} at epoch {best_epoch}')
 
 def main():
     # read the configuration file
