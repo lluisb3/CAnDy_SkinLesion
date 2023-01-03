@@ -13,6 +13,8 @@ from torchvision import transforms
 
 # from torch.utils.tensorboard import SummaryWriter
 
+# ME ESTOY BASANDO EN https://github.com/joaco18/calc-det/blob/main/deep_learning/classification_models/train.py
+# porfa checa las lineas    124,160
 thispath = Path(__file__).resolve()
 selected_gpu = 2  # here you select the GPU used (0, 1 or 2)
 device = torch.device("cuda:" + str(selected_gpu) if
@@ -61,13 +63,13 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
     return loss_sum / len(train_dataloader), predictions, labels
 
 
-def test_1_epoch(net, val_dataset, val_dataloader):
+def val_1_epoch(net, val_dataset, val_dataloader, criterion):
     # switch to test mode
     net.eval()
     # initialize predictions
     predictions = torch.zeros((len(val_dataset), 1), dtype=torch.int64)
     labels = torch.zeros((len(val_dataset), 1), dtype=torch.int64)
-    sample_counter = 0
+    loss_sum, sample_counter = 0.0, 0
     # do not accumulate gradients (faster)
     with torch.no_grad():
         # 1 epoch = 1 complete loop over the dataset
@@ -75,9 +77,13 @@ def test_1_epoch(net, val_dataset, val_dataloader):
             # get data from dataloader
             inputs, targets = batch['image'], batch['label']
             # move data to device
-            inputs = inputs.to(device, non_blocking=True)
+            inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
             # obtain predictions
             outputs = net(inputs)
+            # calculate loss
+            loss = criterion(outputs, targets)
+            # accumulate loss
+            loss_sum += loss.item()
             # store predictions
             outputs_max = torch.argmax(outputs, dim=1)
             for output, target in zip(outputs_max, targets):
@@ -85,10 +91,10 @@ def test_1_epoch(net, val_dataset, val_dataloader):
                 labels[sample_counter] = target
                 sample_counter += 1
 
-    return predictions, labels
+    return loss_sum / len(val_dataloader), predictions, labels
 
 
-def train_test(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler, cfg):
+def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler, cfg):
     # For logging
     exp_path = thispath.parent.parent / f'models/MulticlassClassification/{cfg["experiment_name"]}'
     exp_path.mkdir(exist_ok=True, parents=True)
@@ -102,7 +108,6 @@ def train_test(net, skin_datasets, skin_dataloaders, criterion, optimizer, sched
     # holders for best model
     best_metric = 0.0
     best_epoch = 0
-    last_three_losses = []
     early_stopping_count = 0
     previous_loss = 0
     previous_mean_loss = 0
@@ -115,6 +120,7 @@ def train_test(net, skin_datasets, skin_dataloaders, criterion, optimizer, sched
         checkpoint = torch.load(chkpt_path)
         net.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
         init_epoch = checkpoint['epoch'] + 1
     else:
         init_epoch = 0
@@ -128,60 +134,61 @@ def train_test(net, skin_datasets, skin_dataloaders, criterion, optimizer, sched
     for epoch in range(init_epoch, cfg['training']['n_epochs']):
         logging.info(f'Epoch {epoch + 1}/{cfg["training"]["n_epochs"]}')
         logging.info(('-' * 10))
-        for phase in ['train', 'val']:
-            if phase == 'train':
-                avg_loss, net_predictions, gt_labels = train_1_epoch(net,
-                                                                    skin_datasets[phase],
-                                                                    skin_dataloaders[phase],
-                                                                    optimizer,
-                                                                    criterion,
-                                                                    scheduler
-                                                                    )
-                # save last checkpoint
-                torch.save({
-                    'epoch': epoch,
-                    'model_state_dict': net.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'loss': avg_loss}, chkpt_path)
+        # Training the network
+        avg_loss, net_predictions, gt_labels = train_1_epoch(net,
+                                                             skin_datasets['train'],
+                                                             skin_dataloaders['train'],
+                                                             optimizer,
+                                                             criterion,
+                                                             scheduler
+                                                             )
+        # Get the metrics with the predictions and the labels
+        # metrics_train = metrics_dl(net_predictions,gt_labels)
+        # LOG THE METRICS INTO TENSORBOARD!
+        ##### do something
 
-                last_three_losses.append(avg_loss)
-                if len(last_three_losses) > 3:
-                    last_three_losses = last_three_losses[1:]
+        message = f"Epoch {epoch}: Train -- Avg Loss: {avg_loss:.4f} " \
+                  f"Acc: {metrics_train['accuracy']:.4f} " \
+                  f"BMA: {metrics_train['BMA']:.4f}, Kappa:{metrics_train['kappa']:.4f}"
+        logging.info(message)
 
-                message = f'{phase} -- Avg Loss: {avg_loss:.4f} '
+        # Validation of current network
+        avg_loss, net_predictions, gt_labels = val_1_epoch(net,
+                                                           skin_datasets['val'],
+                                                           skin_dataloaders['val'],
+                                                           criterion)
+        # Get the metrics with the predictions and the labels
+        # metrics_val = metrics_dl(net_predictions,gt_labels)
+        # LOG THE METRICS INTO TENSORBOARD!
+        ##### do something
 
-            if phase == 'val':
-                net_predictions, gt_labels = test_1_epoch(net,
-                                                          skin_datasets[phase],
-                                                          skin_dataloaders[phase])
-                message = f'{phase} --'
+        message = f"Epoch {epoch}: Val -- Avg Loss: {avg_loss:.4f} " \
+                  f"Acc: {metrics_val['accuracy']:.4f} " \
+                  f"BMA: {metrics_val['BMA']:.4f}, Kappa:{metrics_val['kappa']:.4f}"
+        logging.info(message)
 
-            # Get the metrics with the predictions and the labels
-            # metrics = metrics_dl (net_predictions,gt_labels)
-            # LOG THE METRICS INTO TENSORBOARD!
-            ##### do something
+        # save last checkpoint
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': net.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'scheduler_state_dict': scheduler.state_dict(),
+            'metrics_val': metrics_val,
+            'metrics_train': metrics_train,
+            'loss': avg_loss}, chkpt_path)
 
-            message = message + f"Acc: {metrics['accuracy']:.4f}" \
-                                f" BMA: {metrics['BMA']:.4f}, Kappa:{metrics['kappa']:.4f}"
-            logging.info(message)
-                # Save best checkpoint
-            if phase == 'val':
-                if metrics[best_metric_name] > best_metric:
-                    best_metric = metrics[best_metric_name]
-                    best_BMA = metrics['BMA']
-                    best_acc = metrics['accuracy']
-                    best_epoch = epoch + 1
-                    torch.save({
-                        'model_state_dict': model.state_dict(),
-                        'metrics': metrics,
-                        'configuration': cfg
-                    }, best_model_path)
-
-
-
-
-
-
+        # Save best checkpoint
+        if metrics_val[best_metric_name] > best_metric:
+            best_metric = metrics_val[best_metric_name]
+            best_BMA = metrics_val['bma']
+            best_acc = metrics_val['accuracy']
+            best_epoch = epoch + 1
+            torch.save({
+                'model_state_dict': net.state_dict(),
+                'metrics_val': metrics_val,
+                'metrics_train': metrics_train,
+                'configuration': cfg
+            }, best_model_path)
 
 
 def main():
@@ -236,8 +243,18 @@ def main():
                                   num_workers=dataset_arguments['num_workers'],
                                   pin_memory=True)
     dataloaders = {'train': dataloader_train, 'val': dataloader_valid}
+    # loss function
+    # Optimizer
+    criterion = getattr(torch.nn, cfg['training']['criterion'])()
 
-    train_test(net, datasets, dataloaders, criterion=None, optimizer=None, scheduler=None, cfg=cfg)
+    optimizer = getattr(torch.optim, cfg['training']['optimizer'])
+    optimizer = optimizer(net.parameters(), **cfg['training']['optimizer_args'])
+
+    scheduler = getattr(torch.optim.lr_scheduler, cfg['training']['lr_scheduler'])
+    scheduler = scheduler(optimizer, **cfg['training']['lr_scheduler_args'])
+    # **d means "treat the key-value pairs in the dictionary as additional named arguments to this function call."
+
+    train(net, datasets, dataloaders, criterion, optimizer, scheduler, cfg)
 
 
 if __name__ == '__main__':
