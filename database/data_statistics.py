@@ -1,6 +1,7 @@
 from database import SkinLesionDataset
 from utils import csv_writer
 from pathlib import Path
+from tqdm import tqdm
 
 
 thispath = Path(__file__).resolve()
@@ -8,7 +9,7 @@ thispath = Path(__file__).resolve()
 
 def get_mean_and_std(dataset_):
     channels_sum, channels_squared_sum = 0, 0
-    for i in range(len(dataset_)):
+    for i in tqdm(range(len(dataset_))):
         data = dataset_[i]
         channels_sum += data['image'].astype('float32').mean(axis=(0, 1))
         channels_squared_sum += (data['image'].astype('float32') ** 2).mean(axis=(0, 1))
