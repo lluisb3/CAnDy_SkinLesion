@@ -24,6 +24,7 @@ device = torch.device("cuda:" + str(selected_gpu) if
 
 def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, scheduler):
     # switch to train mode
+    net.to(device)
     net.train()
     # reset performance measures
     loss_sum, sample_counter = 0.0, 0
@@ -51,12 +52,14 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
         # get labels
         outputs_max = torch.argmax(outputs, dim=1)
 
-        #Log every 10 batches
-        if (i+1) % 10 == 0 or i == 0:
-            message =f"Batch {i+1}:  \n predictions:{outputs_max}" \
-                     f"\n groudtruth:{targets}"
+
+        #Log every 20 batches
+        if (i+1) % 25 == 0 or i == 0:
+            correct = torch.sum(targets == outputs_max)
+            message = f"\n Batch {i+1}: Number of correct predictions:{correct}"
             logging.info(message)
 
+        outputs_max, targets = outputs_max.cpu().detach().numpy(), targets.cpu().detach().numpy()
         # accumulate outputs and target
         for output, target in zip(outputs_max, targets):
             predictions[sample_counter] = output
@@ -70,6 +73,7 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
 
 def val_1_epoch(net, val_dataset, val_dataloader, criterion):
     # switch to test mode
+    net.to(device)
     net.eval()
     # initialize predictions
     predictions = torch.zeros((len(val_dataset), 1), dtype=torch.int64)
@@ -91,6 +95,9 @@ def val_1_epoch(net, val_dataset, val_dataloader, criterion):
             loss_sum += loss.item()
             # store predictions
             outputs_max = torch.argmax(outputs, dim=1)
+
+            outputs_max, targets = outputs_max.cpu().detach().numpy(), targets.cpu().detach().numpy()
+
             for output, target in zip(outputs_max, targets):
                 predictions[sample_counter] = output
                 labels[sample_counter] = target
@@ -101,21 +108,11 @@ def val_1_epoch(net, val_dataset, val_dataloader, criterion):
 
 def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler, cfg):
 
-    exp_path = thispath.parent.parent / f'models/MulticlassClassification/{cfg["experiment_name"]}'
+    exp_path = thispath.parent.parent / f'models/{cfg["dataset"]["challenge_name"]}/{cfg["experiment_name"]}'
     exp_path.mkdir(exist_ok=True, parents=True)
     # save config file in exp_path
     with open(Path(f"{exp_path}/config_{cfg['experiment_name']}.yml"), 'w') as yaml_file:
         yaml.dump(cfg, yaml_file, default_flow_style=False)
-
-    # For logging
-    logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s',
-                        encoding='utf-8',
-                        level=logging.INFO,
-                        handlers=[
-                            logging.FileHandler(exp_path/"debug.log", mode='w'),
-                            logging.StreamHandler()
-                        ],
-                        datefmt='%m/%d/%Y %I:%M:%S %p')
 
     # For reproducibility
     since = time.time()
@@ -126,12 +123,9 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
     # holders for best model
     best_metric = 0.0
     best_epoch = 0
-    previous_loss = 0
-    previous_mean_loss = 0
     best_metric_name = cfg['training']['best_metric']
     best_model_path = exp_path / f'{cfg["experiment_name"]}_{best_metric_name}.pt'
     chkpt_path = exp_path / f'{cfg["experiment_name"]}_chkpt.pt'
-    logging.info(f'Storing experiment in: {exp_path}')
 
     if cfg['training']['resume_training']:
         checkpoint = torch.load(chkpt_path)
@@ -139,8 +133,23 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
         init_epoch = checkpoint['epoch'] + 1
+        mode_log='a'
+
     else:
         init_epoch = 0
+        mode_log = 'w'
+
+    # For logging
+    logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s',
+                        encoding='utf-8',
+                        level=logging.INFO,
+                        handlers=[
+                            logging.FileHandler(exp_path / "debug.log", mode=mode_log),
+                            logging.StreamHandler()
+                        ],
+                        datefmt='%m/%d/%Y %I:%M:%S %p')
+    logging.info(f'Storing experiment in: {exp_path}')
+
 
     # TENSORBOARD SETUP!!!
     # tensorboard logs
@@ -197,6 +206,8 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
         # Save best checkpoint
         if metrics_val[best_metric_name] > best_metric:
             best_metric = metrics_val[best_metric_name]
+            message = f"Best model saved at Epoch {epoch + 1} with {best_metric_name}: {best_metric}"
+            logging.info(message)
             best_BMA = metrics_val['bma']
             best_acc = metrics_val['accuracy']
             best_epoch = epoch + 1
@@ -210,8 +221,8 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
     message = f'Training complete in {(time_elapsed // 60):.0f}m ' \
               f'{(time_elapsed % 60):.0f}s'
     logging.info(message)
-    logging.info(f'Best val {best_metric_name}: {best_metric:4f}, avgPR {best_BMA:.4f}, '
-                 f'threshold {best_acc:.4f} at epoch {best_epoch}')
+    logging.info(f'Best val {best_metric_name}: {best_metric:4f}, BMA {best_BMA:.4f}, '
+                 f'Acc {best_acc:.4f} at epoch {best_epoch+1}')
 
 def main():
     # read the configuration file
@@ -267,11 +278,15 @@ def main():
     dataloaders = {'train': dataloader_train, 'val': dataloader_valid}
 
     # loss function
-    if cfg['training']['criterion_args'].get('weight') is not None:
-        cfg['training']['criterion_args']['weight'] = torch.tensor(cfg['training']['criterion_args']['weight'],
-                                                                   dtype=torch.float,
-                                                                   device=device)
-    criterion = getattr(torch.nn, cfg['training']['criterion'])(**cfg['training']['criterion_args'])
+    if 'criterion_args' in cfg['training']:
+        if cfg['training']['criterion_args'].get('weight') is not None:
+            holder = cfg['training']['criterion_args']['weight'].copy()
+            cfg['training']['criterion_args']['weight'] = torch.tensor(cfg['training']['criterion_args']['weight'],
+                                                                       dtype=torch.float,
+                                                                       device=device)
+        criterion = getattr(torch.nn, cfg['training']['criterion'])(**cfg['training']['criterion_args'])
+    else:
+        criterion = getattr(torch.nn, cfg['training']['criterion'])()
 
     # Optimizer
     optimizer = getattr(torch.optim, cfg['training']['optimizer'])
@@ -280,7 +295,8 @@ def main():
     scheduler = getattr(torch.optim.lr_scheduler, cfg['training']['lr_scheduler'])
     scheduler = scheduler(optimizer, **cfg['training']['lr_scheduler_args'])
     # **d means "treat the key-value pairs in the dictionary as additional named arguments to this function call."
-
+    with open(config_path, "r") as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
     train(net, datasets, dataloaders, criterion, optimizer, scheduler, cfg)
 
 if __name__ == '__main__':
