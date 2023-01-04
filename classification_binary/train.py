@@ -34,7 +34,7 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
     predictions = torch.zeros((len(train_dataset), 1), dtype=torch.int64)
     labels = torch.zeros((len(train_dataset), 1), dtype=torch.int64)
     # 1 epoch = 1 complete loop over the dataset
-    for batch in tqdm(train_dataloader, desc='Train'):
+    for i, (batch) in enumerate(tqdm(train_dataloader, desc='Train')):
         # get data from dataloader
         inputs, targets = batch['image'], batch['label']
         # move data to device
@@ -56,6 +56,13 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
         loss_sum += loss.item()
 
         outputs_max = torch.round(outputs).int()
+
+        #Log every 10 batches
+        if (i+1) % 10 == 0 or i == 0:
+            message =f"Batch {i+1}:  \n predictions:{outputs_max}" \
+                     f"\n groudtruth:{targets}"
+            logging.info(message)
+
         # accumulate outputs and target
         for output, target in zip(outputs_max, targets):
             predictions[sample_counter] = output
@@ -102,7 +109,7 @@ def val_1_epoch(net, val_dataset, val_dataloader, criterion):
 
 def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler, cfg):
 
-    exp_path = thispath.parent.parent / f'models/MulticlassClassification/{cfg["experiment_name"]}'
+    exp_path = thispath.parent.parent / f'models/BinaryClassification/{cfg["experiment_name"]}'
     exp_path.mkdir(exist_ok=True, parents=True)
     # save config file in exp_path
     with open(Path(f"{exp_path}/config_{cfg['experiment_name']}.yml"), 'w') as yaml_file:
@@ -227,6 +234,7 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
 def main():
     # read the configuration file
     config_path = str(thispath.parent / 'config.yml')
+    print(f"With configuration file in: {config_path}")
     with open(config_path, "r") as ymlfile:
         cfg = yaml.safe_load(ymlfile)
     # use the configuration for the network
