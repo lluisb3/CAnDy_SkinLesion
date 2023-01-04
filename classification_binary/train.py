@@ -20,7 +20,7 @@ from torch.utils.tensorboard import SummaryWriter
 thispath = Path(__file__).resolve()
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
-num_workers = 4
+num_workers = 2
 
 print(f"Number of workers: {num_workers}")
 print(f"Device: {device}")
@@ -57,8 +57,8 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
 
         outputs_max = torch.round(outputs).int()
 
-        #Log every 10 batches
-        if (i+1) % 10 == 0 or i == 0:
+        #Log every 50 batches
+        if (i+1) % 50 == 0 or i == 0:
             message =f"Batch {i+1}:  \n predictions:{outputs_max}" \
                      f"\n groudtruth:{targets}"
             logging.info(message)
@@ -84,7 +84,7 @@ def val_1_epoch(net, val_dataset, val_dataloader, criterion):
     # do not accumulate gradients (faster)
     with torch.no_grad():
         # 1 epoch = 1 complete loop over the dataset
-        for batch in tqdm(val_dataloader,desc='Val'):
+        for batch in tqdm(val_dataloader, desc='Val'):
             # get data from dataloader
             inputs, targets = batch['image'], batch['label']
             # move data to device
@@ -129,8 +129,13 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
     log_dir = Path(exp_path / "tensorboard")
     log_dir.mkdir(exist_ok=True, parents=True)
     writer = SummaryWriter(log_dir=log_dir)
-    # writer.add_graph(net)
-    # writer.close()
+
+    for i, minibatch in enumerate(skin_dataloaders['train']):
+        if i >= 1:
+            break
+        data = minibatch['image']
+    writer.add_graph(net, data)
+    writer.close()
 
     # For reproducibility
     since = time.time()
