@@ -191,7 +191,7 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
         writer.add_scalar("training accuracy", metrics_train[best_metric_name], epoch)
         writer.close()
 
-        message = f"Epoch {epoch}: Train -- Avg Loss: {avg_loss:.4f} " \
+        message = f"Epoch {epoch + 1}: Train -- Avg Loss: {avg_loss:.4f} " \
                   f"Acc: {metrics_train['accuracy']:.4f} " \
                   f"BMA: {metrics_train['bma']:.4f}, Kappa:{metrics_train['kappa']:.4f}"
         logging.info(message)
@@ -211,7 +211,7 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
         writer.add_pr_curve("PR curve training", gt_labels, probs_predictions)
         writer.close()
 
-        message = f"Epoch {epoch}: Val -- Avg Loss: {avg_loss:.4f} " \
+        message = f"Epoch {epoch + 1}: Val -- Avg Loss: {avg_loss:.4f} " \
                   f"Acc: {metrics_val['accuracy']:.4f} " \
                   f"BMA: {metrics_val['bma']:.4f}, Kappa:{metrics_val['kappa']:.4f}"
         logging.info(message)
