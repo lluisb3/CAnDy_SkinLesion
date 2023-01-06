@@ -13,20 +13,15 @@ from classification_multi import model_option
 from torchvision import transforms
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
+import torchvision
 
 
 # ME ESTOY BASANDO EN https://github.com/joaco18/calc-det/blob/main/deep_learning/classification_models/train.py
 # porfa checa las lineas    124,160
 thispath = Path(__file__).resolve()
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
-num_workers = 2
-
-print(f"Number of workers: {num_workers}")
-print(f"Device: {device}")
 
 
-def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, scheduler):
+def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, scheduler, device):
     # switch to train mode
     net.train()
     # reset performance measures
@@ -57,10 +52,10 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
 
         outputs_max = torch.round(outputs).int()
 
-        #Log every 50 batches
+        # Log every 50 batches
         if (i+1) % 50 == 0 or i == 0:
-            message =f"Batch {i+1}:  \n predictions:{outputs_max}" \
-                     f"\n groudtruth:{targets}"
+            correct = torch.sum(targets == outputs_max)
+            message = f"\n Batch {i+1}: Number of correct predictions:{correct}"
             logging.info(message)
 
         # accumulate outputs and target
@@ -74,12 +69,13 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
     return loss_sum / len(train_dataloader), predictions, labels
 
 
-def val_1_epoch(net, val_dataset, val_dataloader, criterion):
+def val_1_epoch(net, val_dataset, val_dataloader, criterion, device):
     # switch to test mode
     net.eval()
     # initialize predictions
     predictions = torch.zeros((len(val_dataset), 1), dtype=torch.int64)
     labels = torch.zeros((len(val_dataset), 1), dtype=torch.int64)
+    prob_predictions = torch.zeros((len(val_dataset), 1), dtype=torch.int64)
     loss_sum, sample_counter = 0.0, 0
     # do not accumulate gradients (faster)
     with torch.no_grad():
@@ -99,15 +95,16 @@ def val_1_epoch(net, val_dataset, val_dataloader, criterion):
             loss_sum += loss.item()
             # store predictions
             outputs_max = torch.round(outputs).int()
-            for output, target in zip(outputs_max, targets):
+            for probs, output, target in zip(outputs, outputs_max, targets):
+                prob_predictions[sample_counter] = probs
                 predictions[sample_counter] = output
                 labels[sample_counter] = target
                 sample_counter += 1
 
-    return loss_sum / len(val_dataloader), predictions, labels
+    return loss_sum / len(val_dataloader), predictions, labels, prob_predictions
 
 
-def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler, cfg):
+def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler, cfg, device):
 
     exp_path = thispath.parent.parent / f'models/BinaryClassification/{cfg["experiment_name"]}'
     exp_path.mkdir(exist_ok=True, parents=True)
@@ -133,7 +130,15 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
     for i, minibatch in enumerate(skin_dataloaders['train']):
         if i >= 1:
             break
-        data = minibatch['image']
+        data = minibatch['image'][:, :3, :, :]
+        mean_train = torch.tensor(cfg['dataset']['mean']).view(1, 3, 1, 1)/255
+        std_train = torch.tensor(cfg['dataset']['stddev']).view(1, 3, 1, 1)/255
+        data_transformed = data * std_train + mean_train
+
+    image_grid = torchvision.utils.make_grid(data)
+    image_grid_transformed = torchvision.utils.make_grid(data_transformed)
+    writer.add_image("Transformed Binary minibatch Normalized", image_grid)
+    writer.add_image("Transformed Binary minibatch", image_grid_transformed)
     writer.add_graph(net, data)
     writer.close()
 
@@ -173,7 +178,8 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
                                                              skin_dataloaders['train'],
                                                              optimizer,
                                                              criterion,
-                                                             scheduler
+                                                             scheduler,
+                                                             device
                                                              )
 
         # Get the metrics with the predictions and the labels
@@ -182,7 +188,7 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
 
         # Log metrics in Tensorboard
         writer.add_scalar("training loss", avg_loss, epoch)
-        writer.add_scalar("training accuracy", metrics_train["accuracy"], epoch)
+        writer.add_scalar("training accuracy", metrics_train[best_metric_name], epoch)
         writer.close()
 
         message = f"Epoch {epoch}: Train -- Avg Loss: {avg_loss:.4f} " \
@@ -191,15 +197,18 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
         logging.info(message)
 
         # Validation of current network
-        avg_loss, net_predictions, gt_labels = val_1_epoch(net,
+        avg_loss, net_predictions, gt_labels, probs_predictions = val_1_epoch(net,
                                                            skin_datasets['val'],
                                                            skin_dataloaders['val'],
-                                                           criterion)
+                                                           criterion,
+                                                           device)
         # Get the metrics with the predictions and the labels
         metrics_val = metrics_function(gt_labels, net_predictions)
+
         # Log metrics in Tensorboard
         writer.add_scalar("validation loss", avg_loss, epoch)
-        writer.add_scalar("validation accuracy", metrics_val["accuracy"], epoch)
+        writer.add_scalar("validation accuracy", metrics_val[best_metric_name], epoch)
+        writer.add_pr_curve("PR curve training", gt_labels, probs_predictions)
         writer.close()
 
         message = f"Epoch {epoch}: Val -- Avg Loss: {avg_loss:.4f} " \
@@ -220,8 +229,10 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
         # Save best checkpoint
         if metrics_val[best_metric_name] > best_metric:
             best_metric = metrics_val[best_metric_name]
+            message = f"Best model saved at Epoch {epoch + 1} with {best_metric_name}: {best_metric}"
+            logging.info(message)
             best_BMA = metrics_val['bma']
-            best_acc = metrics_val['accuracy']
+            best_kappa = metrics_val['kappa']
             best_epoch = epoch + 1
             torch.save({
                 'model_state_dict': net.state_dict(),
@@ -233,10 +244,16 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
     message = f'Training complete in {(time_elapsed // 60):.0f}m ' \
               f'{(time_elapsed % 60):.0f}s'
     logging.info(message)
-    logging.info(f'Best val {best_metric_name}: {best_metric:4f}, avgPR {best_BMA:.4f}, '
-                 f'threshold {best_acc:.4f} at epoch {best_epoch}')
+    logging.info(f'Best val {best_metric_name}: {best_metric:4f}, BMA {best_BMA:.4f}, '
+                 f'Acc {best_kappa:.4f} at epoch {best_epoch + 1}')
+
 
 def main():
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+
+    print(f"Device: {device}")
+
     # read the configuration file
     config_path = str(thispath.parent / 'config.yml')
     print(f"With configuration file in: {config_path}")
@@ -248,8 +265,6 @@ def main():
                                      model_arguments['num_classes'],
                                      freeze=model_arguments['freeze_weights'],
                                      num_freezed_layers=model_arguments['num_frozen_layers'])
-
-
 
     # Data transformations
     DataAugmentation = transforms.RandomApply(torch.nn.ModuleList([transforms.RandomRotation(70),
@@ -303,7 +318,7 @@ def main():
     scheduler = scheduler(optimizer, **cfg['training']['lr_scheduler_args'])
     # **d means "treat the key-value pairs in the dictionary as additional named arguments to this function call."
 
-    train(net, datasets, dataloaders, criterion, optimizer, scheduler, cfg)
+    train(net, datasets, dataloaders, criterion, optimizer, scheduler, cfg, device)
 
 
 if __name__ == '__main__':
