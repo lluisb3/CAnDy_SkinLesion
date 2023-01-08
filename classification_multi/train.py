@@ -161,7 +161,7 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
         mean = np.asarray(cfg['mean']).reshape([1, 3, 1, 1])
         std = np.asarray(cfg['stddev']).reshape([1, 3, 1, 1])
         data = data * std + mean
-    writer.add_graph(net, data)
+    writer.add_graph(net, data/255)
     writer.close()
 
     for epoch in range(init_epoch, cfg['training']['n_epochs']):
