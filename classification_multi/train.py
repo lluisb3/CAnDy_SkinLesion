@@ -11,11 +11,10 @@ from database import SkinLesionDataset
 from classification_multi import model_option
 from torchvision import transforms
 from tqdm import tqdm
+from torch.utils.tensorboard import SummaryWriter
+import os
 
-# from torch.utils.tensorboard import SummaryWriter
 
-# ME ESTOY BASANDO EN https://github.com/joaco18/calc-det/blob/main/deep_learning/classification_models/train.py
-# porfa checa las lineas    124,160
 thispath = Path(__file__).resolve()
 selected_gpu = 2  # here you select the GPU used (0, 1 or 2)
 device = torch.device("cuda:" + str(selected_gpu) if
@@ -53,8 +52,8 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
         outputs_max = torch.argmax(outputs, dim=1)
 
 
-        #Log every 20 batches
-        if (i+1) % 25 == 0 or i == 0:
+        #Log every 50 batches
+        if (i+1) % 50 == 0 or i == 0:
             correct = torch.sum(targets == outputs_max)
             message = f"\n Batch {i+1}: Number of correct predictions:{correct}"
             logging.info(message)
@@ -150,12 +149,20 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
                         datefmt='%m/%d/%Y %I:%M:%S %p')
     logging.info(f'Storing experiment in: {exp_path}')
 
+    # Log in tensorboard and add the graph of the net
+    log_dir = Path(exp_path / "tensorboard")
+    log_dir.mkdir(exist_ok=True, parents=True)
+    writer = SummaryWriter(log_dir=log_dir)
 
-    # TENSORBOARD SETUP!!!
-    # tensorboard logs
-    # log_dir = exp_path / 'tensorboard'
-    # log_dir.mkdir(exist_ok=True, parents=True)
-    # writer = SummaryWriter(log_dir=log_dir)
+    for i, minibatch in enumerate(skin_dataloaders['train']):
+        if i >= 1:
+            break
+        data = minibatch['image']
+        mean = np.asarray(cfg['mean']).reshape([1, 3, 1, 1])
+        std = np.asarray(cfg['stddev']).reshape([1, 3, 1, 1])
+        data = data * std + mean
+    writer.add_graph(net, data)
+    writer.close()
 
     for epoch in range(init_epoch, cfg['training']['n_epochs']):
         logging.info(f'Epoch {epoch + 1}/{cfg["training"]["n_epochs"]}')
@@ -170,8 +177,10 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
                                                              )
         # Get the metrics with the predictions and the labels
         metrics_train = metrics_function(gt_labels, net_predictions)
-        # LOG THE METRICS INTO TENSORBOARD!
-        ##### do something
+        # Log metrics in Tensorboard
+        writer.add_scalar("training loss", avg_loss, epoch)
+        writer.add_scalar("training kappa", metrics_train[best_metric_name], epoch)
+        writer.close()
 
         message = f"Epoch {epoch+1}: Train -- Avg Loss: {avg_loss:.4f} " \
                   f"Acc: {metrics_train['accuracy']:.4f} " \
@@ -185,8 +194,10 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
                                                            criterion)
         # Get the metrics with the predictions and the labels
         metrics_val = metrics_function(gt_labels, net_predictions)
-        # LOG THE METRICS INTO TENSORBOARD!
-        ##### do something
+        # Log metrics in Tensorboard
+        writer.add_scalar("validation loss", avg_loss, epoch)
+        writer.add_scalar("validation kappa", metrics_val[best_metric_name], epoch)
+        writer.close()
 
         message = f"Epoch {epoch+1}: Val -- Avg Loss: {avg_loss:.4f} " \
                   f"Acc: {metrics_val['accuracy']:.4f} " \
@@ -226,6 +237,8 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
 
 def main():
     # read the configuration file
+    print(f"Device: {device}")
+
     config_path = str(thispath.parent / 'config.yml')
     with open(config_path, "r") as ymlfile:
         cfg = yaml.safe_load(ymlfile)
@@ -298,6 +311,7 @@ def main():
     with open(config_path, "r") as ymlfile:
         cfg = yaml.safe_load(ymlfile)
     train(net, datasets, dataloaders, criterion, optimizer, scheduler, cfg)
+
 
 if __name__ == '__main__':
     main()
