@@ -25,9 +25,9 @@ def metadata_creation(challenge_name):
                         "or 'BinaryClassification'")
 
     datadir = thispath.parent.parent/"data"/challenge_name
-    images_files_train = [i for i in datadir.rglob("*.jpg") if "train" in str(i)]
-    images_files_validation = [i for i in datadir.rglob("*.jpg") if "val" in str(i)]
-    images_files_test = [i for i in datadir.rglob("*.jpg") if "test" in str(i)]
+    images_files_train = [i for i in datadir.rglob("*.jpg") if "train" in str(i) and "seg" not in str(i)]
+    images_files_validation = [i for i in datadir.rglob("*.jpg") if "val" in str(i) and "seg" not in str(i)]
+    images_files_test = [i for i in datadir.rglob("*.jpg") if "test" in str(i) and "seg" not in str(i)]
 
     if challenge_name == 'MulticlassClassification':
         header = ['Name', 'Set', 'Lesion Type', 'Label', 'Image Height(row)',
