@@ -12,7 +12,7 @@ def set_parameter_requires_grad(model, number_frozen_layers):
     return model
 
 
-def model_option(model_name, num_classes, freeze=False, num_freezed_layers=0):
+def model_option(model_name, num_classes, freeze=False, num_freezed_layers=0, seg_mask=False):
     # Initialize these variables which will be set in this if statement. Each of these
     # variables is model specific.
     # if ever in need to delete cached weights go to Users\.cache\torch\hub\checkpoints
