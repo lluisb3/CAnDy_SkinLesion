@@ -18,6 +18,8 @@ class SkinLesionDataset(Dataset):
         self.mean = dataset_mean
         self.std = dataset_std
         self.dataset_set = dataset_set
+        if self.dataset_set != 'test':
+            self.metadata['Label']=self.metadata['Label'].astype(float)
         self.segmentation = seg_image
 
     def __len__(self):
