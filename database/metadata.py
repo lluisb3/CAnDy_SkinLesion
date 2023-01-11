@@ -61,7 +61,7 @@ def metadata_creation(challenge_name):
 
     for i, file in zip(tqdm(range(len(images_files_test)), desc='Test files'), images_files_test):
         skin_lesion = cv.imread(str(file))
-        row = [file.stem, file.parent.parent.stem,'-', '-',
+        row = [file.stem, file.parent.stem,'-', '-',
                skin_lesion.shape[0], skin_lesion.shape[1], np.min(skin_lesion), np.max(skin_lesion),
                check_fov(skin_lesion), skin_lesion.dtype]
         if challenge_name == 'BinaryClassification':
