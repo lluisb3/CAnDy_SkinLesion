@@ -250,7 +250,7 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
 
 def main():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    device = "cpu"
 
     print(f"Device: {device}")
 
@@ -264,7 +264,8 @@ def main():
     net, resize_param = model_option(model_arguments['model_name'],
                                      model_arguments['num_classes'],
                                      freeze=model_arguments['freeze_weights'],
-                                     num_freezed_layers=model_arguments['num_frozen_layers'])
+                                     num_freezed_layers=model_arguments['num_frozen_layers'],
+                                     seg_mask=cfg['dataset']['use_masks'])
 
     # Data transformations
     DataAugmentation = transforms.RandomApply(torch.nn.ModuleList([transforms.RandomRotation(70),
@@ -288,12 +289,14 @@ def main():
                                       dataset_set='train',
                                       dataset_mean=dataset_arguments['mean'],
                                       dataset_std=dataset_arguments['stddev'],
-                                      transform=transform_train)
+                                      transform=transform_train,
+                                      seg_image = dataset_arguments['use_masks'])
     dataset_val = SkinLesionDataset(challenge_name=dataset_arguments['challenge_name'],
                                     dataset_set='val',
                                     dataset_mean=dataset_arguments['mean'],
                                     dataset_std=dataset_arguments['stddev'],
-                                    transform=transform_val)
+                                    transform=transform_val,
+                                    seg_image=dataset_arguments['use_masks'])
     datasets = {'train': dataset_train, 'val': dataset_val}
     # use the configuration for the dataloader
     dataset_arguments = cfg['dataloaders']

@@ -1,4 +1,3 @@
-import torch
 from torch import nn
 import torchvision.models as models
 from torch.autograd import Variable

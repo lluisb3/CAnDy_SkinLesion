@@ -16,7 +16,7 @@ def segment(dataset_option, subdataset_option):
     Parameters
     ----------
     dataset_option: Chose the Skin Lesion dataset, as "BinaryClassification" or "MulticlassClassification".
-    subdataset_option Chose the sub-dataset, as "train" (train) or "val" (validation).
+    subdataset_option: Chose the sub-dataset, as "train" (train) or "val" (validation).
 
     Returns
     -------

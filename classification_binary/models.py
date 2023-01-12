@@ -1,7 +1,6 @@
-import torch
 from torch import nn
 import torchvision.models as models
-
+from torch.autograd import Variable
 
 def set_parameter_requires_grad(model, number_frozen_layers):
     for k, child in enumerate(model.named_children()):
@@ -12,7 +11,7 @@ def set_parameter_requires_grad(model, number_frozen_layers):
     return model
 
 
-def model_option(model_name, num_classes, freeze=False, num_freezed_layers=0):
+def model_option(model_name, num_classes, freeze=False, num_freezed_layers=0, seg_mask=False):
     # Initialize these variables which will be set in this if statement. Each of these
     # variables is model specific.
     # if ever in need to delete cached weights go to Users\.cache\torch\hub\checkpoints
@@ -22,6 +21,15 @@ def model_option(model_name, num_classes, freeze=False, num_freezed_layers=0):
         """ ResNet50 
           """
         net = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+        if seg_mask:
+            #   Modifying the input layer to receive 4-channel image instead of 3-channel image,
+            #   We keep the pretrained weights for the RGB channels of the images
+            weight1 = net.conv1.weight.clone()
+            new_first_layer = nn.Conv2d(4, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3),
+                                        bias=False).requires_grad_()
+            new_first_layer.weight[:, :3, :, :].data[...] = Variable(weight1, requires_grad=True)
+            net.conv1 = new_first_layer
+
         if freeze:
             # Freezing the number of layers
             net = set_parameter_requires_grad(net, num_freezed_layers)
@@ -38,6 +46,16 @@ def model_option(model_name, num_classes, freeze=False, num_freezed_layers=0):
         """ ConvNeXt small
           """
         net = models.convnext_small(weights='DEFAULT')
+        if seg_mask:
+            #   Modifying the input layer to receive 4-channel image instead of 3-channel image,
+            #   We keep the pretrained weights for the RGB channels of the images
+            weight1 = net.features[0][0].weight.clone()
+            bias1 = net.features[0][0].bias.clone()
+            new_first_layer = nn.Conv2d(4, 96, kernel_size=(4, 4), stride=(4, 4), padding=(0, 0),
+                                        bias=True).requires_grad_()
+            new_first_layer.weight[:, :3, :, :].data[...] = Variable(weight1, requires_grad=True)
+            new_first_layer.bias.data[...] = Variable(bias1, requires_grad=True)
+            net.features[0][0] = new_first_layer
         if freeze:
             # Freezing the number of layers
             net.features = set_parameter_requires_grad(net.features, num_freezed_layers)
@@ -53,6 +71,16 @@ def model_option(model_name, num_classes, freeze=False, num_freezed_layers=0):
         """ Swin Transformer V2 -T
         """
         net = models.swin_v2_t(weights=models.Swin_V2_T_Weights.DEFAULT)
+        if seg_mask:
+            #   Modifying the input layer to receive 4-channel image instead of 3-channel image,
+            #   We keep the pretrained weights for the RGB channels of the images
+            weight1 = net.features[0][0].weight.clone()
+            bias1 = net.features[0][0].bias.clone()
+            new_first_layer = nn.Conv2d(4, 96, kernel_size=(4, 4), stride=(4, 4), padding=(0, 0),
+                                        bias=True).requires_grad_()
+            new_first_layer.weight[:, :3, :, :].data[...] = Variable(weight1, requires_grad=True)
+            new_first_layer.bias.data[...] = Variable(bias1, requires_grad=True)
+            net.features[0][0] = new_first_layer
         if freeze:
             # Freezing the number of layers
             net = set_parameter_requires_grad(net, num_freezed_layers)

@@ -252,7 +252,8 @@ def main():
     net, resize_param = model_option(model_arguments['model_name'],
                                      model_arguments['num_classes'],
                                      freeze=model_arguments['freeze_weights'],
-                                     num_freezed_layers=model_arguments['num_frozen_layers'])
+                                     num_freezed_layers=model_arguments['num_frozen_layers'],
+                                     seg_mask=cfg['dataset']['use_masks'])
     # Data transformations
     DataAugmentation = transforms.RandomApply(torch.nn.ModuleList([transforms.RandomRotation(70),
                                                                    transforms.RandomVerticalFlip(),
