@@ -35,8 +35,8 @@ class SkinLesionDataset(Dataset):
                                std=self.std,
                                only_non_zero=self.metadata['FOV presence'].iloc[idx])  # Image in float-32 (HxWxC)
             if self.segmentation:
-                seg_im = cv.imread(Path(str(self.data_dir)+f"_seg/{self.metadata['Lesion Type'].iloc[idx]}/"
-                                                           f"{self.metadata['Name'].iloc[idx]}_seg.png"), flags=0)
+                seg_im = cv.imread(str(self.data_dir)+f"_seg/{self.metadata['Lesion Type'].iloc[idx]}/"
+                                                      f"{self.metadata['Name'].iloc[idx]}_seg.png", flags=0)
                 img = np.concatenate((img, seg_im[:, :, np.newaxis]), axis=2)
             img = self.transform(img)
 
