@@ -3,6 +3,7 @@ import time
 import random
 import torch
 import numpy as np
+import torchvision
 from metrics import metrics_function
 from torch.utils.data import DataLoader
 import yaml
@@ -32,7 +33,7 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
     # 1 epoch = 1 complete loop over the dataset
     for i, (batch) in enumerate(tqdm(train_dataloader, desc='Train')):
         # get data from dataloader
-        inputs, targets = batch['image'], batch['label']
+        inputs, targets = batch['image'], batch['label'].type(torch.LongTensor)
         # move data to device
         inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
         # zero the parameter gradients
@@ -55,7 +56,7 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
         #Log every 50 batches
         if (i+1) % 50 == 0 or i == 0:
             correct = torch.sum(targets == outputs_max)
-            message = f"\n Batch {i+1}: Number of correct predictions:{correct}"
+            message = f"\n Batch {i+1}: Number of correct predictions:{correct}/{len(targets)}"
             logging.info(message)
 
         outputs_max, targets = outputs_max.cpu().detach().numpy(), targets.cpu().detach().numpy()
@@ -83,7 +84,7 @@ def val_1_epoch(net, val_dataset, val_dataloader, criterion):
         # 1 epoch = 1 complete loop over the dataset
         for batch in tqdm(val_dataloader,desc='Val'):
             # get data from dataloader
-            inputs, targets = batch['image'], batch['label']
+            inputs, targets = batch['image'], batch['label'].type(torch.LongTensor)
             # move data to device
             inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
             # obtain predictions
@@ -157,11 +158,14 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
     for i, minibatch in enumerate(skin_dataloaders['train']):
         if i >= 1:
             break
-        data = minibatch['image']
-        mean = np.asarray(cfg['mean']).reshape([1, 3, 1, 1])
-        std = np.asarray(cfg['stddev']).reshape([1, 3, 1, 1])
-        data = data * std + mean
-    writer.add_graph(net, data/255)
+        data = minibatch['image'][:, :3, :, :]
+        mean = torch.tensor(cfg['dataset']['mean']).view(1, 3, 1, 1)/255
+        std = torch.tensor(cfg['dataset']['stddev']).view(1, 3, 1, 1)/255
+        data_transformed = data * std + mean
+
+    image_grid_transformed = torchvision.utils.make_grid(data_transformed)
+    writer.add_image("Transformed Binary minibatch", image_grid_transformed)
+    writer.add_graph(net, data_transformed)
     writer.close()
 
     for epoch in range(init_epoch, cfg['training']['n_epochs']):
@@ -235,6 +239,7 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
     logging.info(f'Best val {best_metric_name}: {best_metric:4f}, BMA {best_BMA:.4f}, '
                  f'Acc {best_acc:.4f} at epoch {best_epoch+1}')
 
+
 def main():
     # read the configuration file
     print(f"Device: {device}")
@@ -270,12 +275,14 @@ def main():
                                       dataset_set='train',
                                       dataset_mean=dataset_arguments['mean'],
                                       dataset_std=dataset_arguments['stddev'],
-                                      transform=transform_train)
+                                      transform=transform_train,
+                                      seg_image=dataset_arguments['use_masks'])
     dataset_val = SkinLesionDataset(challenge_name=dataset_arguments['challenge_name'],
                                     dataset_set='val',
                                     dataset_mean=dataset_arguments['mean'],
                                     dataset_std=dataset_arguments['stddev'],
-                                    transform=transform_val)
+                                    transform=transform_val,
+                                    seg_image=dataset_arguments['use_masks'])
     datasets = {'train': dataset_train, 'val': dataset_val}
     # use the configuration for the dataloader
     dataset_arguments = cfg['dataloaders']
