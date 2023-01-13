@@ -158,14 +158,16 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
     for i, minibatch in enumerate(skin_dataloaders['train']):
         if i >= 1:
             break
-        data = minibatch['image'][:, :3, :, :]
-        mean = torch.tensor(cfg['dataset']['mean']).view(1, 3, 1, 1)/255
-        std = torch.tensor(cfg['dataset']['stddev']).view(1, 3, 1, 1)/255
-        data_transformed = data * std + mean
+        data = minibatch['image']
+        mean_train = torch.tensor(cfg['dataset']['mean']).view(1, 3, 1, 1) / 255
+        std_train = torch.tensor(cfg['dataset']['stddev']).view(1, 3, 1, 1) / 255
+        data_transformed = data[:, :3, :, :] * std_train + mean_train
 
+    image_grid = torchvision.utils.make_grid(data[:, :3, :, :])
     image_grid_transformed = torchvision.utils.make_grid(data_transformed)
-    writer.add_image("Transformed Binary minibatch", image_grid_transformed)
-    writer.add_graph(net, data_transformed)
+    writer.add_image("Transformed Multiclass minibatch Normalized", image_grid)
+    writer.add_image("Transformed Multiclass minibatch", image_grid_transformed)
+    writer.add_graph(net, data)
     writer.close()
 
     for epoch in range(init_epoch, cfg['training']['n_epochs']):
@@ -253,7 +255,9 @@ def main():
                                      model_arguments['num_classes'],
                                      freeze=model_arguments['freeze_weights'],
                                      num_freezed_layers=model_arguments['num_frozen_layers'],
-                                     seg_mask=cfg['dataset']['use_masks'])
+                                     seg_mask=cfg['dataset']['use_masks'],
+                                     dropout=model_arguments['dropout']
+                                     )
     # Data transformations
     DataAugmentation = transforms.RandomApply(torch.nn.ModuleList([transforms.RandomRotation(70),
                                                                    transforms.RandomVerticalFlip(),
