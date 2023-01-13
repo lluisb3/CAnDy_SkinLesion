@@ -15,9 +15,6 @@ from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 import torchvision
 
-
-# ME ESTOY BASANDO EN https://github.com/joaco18/calc-det/blob/main/deep_learning/classification_models/train.py
-# porfa checa las lineas    124,160
 thispath = Path(__file__).resolve()
 
 
@@ -53,9 +50,9 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
         outputs_max = torch.round(outputs).int()
 
         # Log every 50 batches
-        if (i+1) % 50 == 0 or i == 0:
+        if (i + 1) % 50 == 0 or i == 0:
             correct = torch.sum(targets == outputs_max)
-            message = f"\n Batch {i+1}: Number of correct predictions:{correct}"
+            message = f"\n Batch {i + 1}: Number of correct predictions:{correct}"
             logging.info(message)
 
         # accumulate outputs and target
@@ -105,7 +102,6 @@ def val_1_epoch(net, val_dataset, val_dataloader, criterion, device):
 
 
 def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler, cfg, device):
-
     exp_path = thispath.parent.parent / f'models/BinaryClassification/{cfg["experiment_name"]}'
     exp_path.mkdir(exist_ok=True, parents=True)
     # save config file in exp_path
@@ -117,7 +113,7 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
                         encoding='utf-8',
                         level=logging.INFO,
                         handlers=[
-                            logging.FileHandler(exp_path/"debug.log"),
+                            logging.FileHandler(exp_path / "debug.log"),
                             logging.StreamHandler()
                         ],
                         datefmt='%m/%d/%Y %I:%M:%S %p')
@@ -130,12 +126,12 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
     for i, minibatch in enumerate(skin_dataloaders['train']):
         if i >= 1:
             break
-        data = minibatch['image'][:, :3, :, :]
-        mean_train = torch.tensor(cfg['dataset']['mean']).view(1, 3, 1, 1)/255
-        std_train = torch.tensor(cfg['dataset']['stddev']).view(1, 3, 1, 1)/255
-        data_transformed = data * std_train + mean_train
+        data = minibatch['image']
+        mean_train = torch.tensor(cfg['dataset']['mean']).view(1, 3, 1, 1) / 255
+        std_train = torch.tensor(cfg['dataset']['stddev']).view(1, 3, 1, 1) / 255
+        data_transformed = data[:, :3, :, :] * std_train + mean_train
 
-    image_grid = torchvision.utils.make_grid(data)
+    image_grid = torchvision.utils.make_grid(data[:, :3, :, :])
     image_grid_transformed = torchvision.utils.make_grid(data_transformed)
     writer.add_image("Transformed Binary minibatch Normalized", image_grid)
     writer.add_image("Transformed Binary minibatch", image_grid_transformed)
@@ -198,10 +194,10 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
 
         # Validation of current network
         avg_loss, net_predictions, gt_labels, probs_predictions = val_1_epoch(net,
-                                                           skin_datasets['val'],
-                                                           skin_dataloaders['val'],
-                                                           criterion,
-                                                           device)
+                                                                              skin_datasets['val'],
+                                                                              skin_dataloaders['val'],
+                                                                              criterion,
+                                                                              device)
         # Get the metrics with the predictions and the labels
         metrics_val = metrics_function(gt_labels, net_predictions)
 
@@ -215,16 +211,6 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
                   f"Acc: {metrics_val['accuracy']:.4f} " \
                   f"BMA: {metrics_val['bma']:.4f}, Kappa:{metrics_val['kappa']:.4f}"
         logging.info(message)
-
-        # save last checkpoint
-        torch.save({
-            'epoch': epoch,
-            'model_state_dict': net.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'scheduler_state_dict': scheduler.state_dict(),
-            'metrics_val': metrics_val,
-            'metrics_train': metrics_train,
-            'loss': avg_loss}, chkpt_path)
 
         # Save best checkpoint
         if metrics_val[best_metric_name] > best_metric:
@@ -245,7 +231,7 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
               f'{(time_elapsed % 60):.0f}s'
     logging.info(message)
     logging.info(f'Best val {best_metric_name}: {best_metric:4f}, BMA {best_BMA:.4f}, '
-                 f'Acc {best_kappa:.4f} at epoch {best_epoch + 1}')
+                 f'Kappa {best_kappa:.4f} at epoch {best_epoch + 1}')
 
 
 def main():
@@ -265,8 +251,8 @@ def main():
                                      model_arguments['num_classes'],
                                      freeze=model_arguments['freeze_weights'],
                                      num_freezed_layers=model_arguments['num_frozen_layers'],
-                                     seg_mask=cfg['dataset']['use_masks'])
-
+                                     seg_mask=cfg['dataset']['use_masks'],
+                                     dropout=model_arguments['dropout'])
     # Data transformations
     DataAugmentation = transforms.RandomApply(torch.nn.ModuleList([transforms.RandomRotation(70),
                                                                    transforms.RandomVerticalFlip(),
@@ -290,7 +276,7 @@ def main():
                                       dataset_mean=dataset_arguments['mean'],
                                       dataset_std=dataset_arguments['stddev'],
                                       transform=transform_train,
-                                      seg_image = dataset_arguments['use_masks'])
+                                      seg_image=dataset_arguments['use_masks'])
     dataset_val = SkinLesionDataset(challenge_name=dataset_arguments['challenge_name'],
                                     dataset_set='val',
                                     dataset_mean=dataset_arguments['mean'],
