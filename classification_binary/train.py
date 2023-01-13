@@ -212,6 +212,16 @@ def train(net, skin_datasets, skin_dataloaders, criterion, optimizer, scheduler,
                   f"BMA: {metrics_val['bma']:.4f}, Kappa:{metrics_val['kappa']:.4f}"
         logging.info(message)
 
+        # save last checkpoint
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': net.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'scheduler_state_dict': scheduler.state_dict(),
+            'metrics_val': metrics_val,
+            'metrics_train': metrics_train,
+            'loss': avg_loss}, chkpt_path)
+
         # Save best checkpoint
         if metrics_val[best_metric_name] > best_metric:
             best_metric = metrics_val[best_metric_name]
