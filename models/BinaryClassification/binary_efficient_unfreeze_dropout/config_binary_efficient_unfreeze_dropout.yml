@@ -1,0 +1,41 @@
+data_aug:
+  prob: 0.3
+dataloaders:
+  num_workers: 4
+  train_batch_size: 64
+  val_batch_size: 64
+dataset:
+  challenge_name: BinaryClassification
+  mean:
+  - 170.19408
+  - 134.99303
+  - 133.6901
+  stddev:
+  - 57.253548
+  - 52.204544
+  - 55.21347
+  use_masks: false
+experiment_name: binary_efficient_unfreze_dropout
+model:
+  dropout: 0.2
+  freeze_weights: false
+  model_name: efficient
+  num_classes: 1
+  num_frozen_layers: None
+training:
+  best_metric: accuracy
+  criterion: BCELoss
+  lr_scheduler: MultiStepLR
+  lr_scheduler_args:
+    gamma: 0.1
+    milestones:
+    - 3
+    - 12
+    - 25
+    - 40
+  n_epochs: 50
+  optimizer: SGD
+  optimizer_args:
+    lr: 0.01
+    momentum: 0.9
+  resume_training: false
