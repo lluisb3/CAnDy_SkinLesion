@@ -1,8 +1,8 @@
 # Folders from project with big-size files
 data/*
 models/*
-classification_binary/config.yml
-classification_multi/config.yml
+classification_binary/config.yml.example
+classification_multi/config.yml.example
 trash.py
 
 # Byte-compiled / optimized / DLL files

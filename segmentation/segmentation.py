@@ -31,7 +31,7 @@ def segment(dataset_option, subdataset_option):
     print(f"Device: {device}")
 
     modelsdir = Path(thispath / "models")
-    model_filename = "Unet_Experiment_7.tar"
+    model_filename = "Unet_trained.tar"
 
     net = UNet()
     checkpoint = torch.load(Path(modelsdir / model_filename), map_location=lambda storage, loc: storage)
