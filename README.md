@@ -43,11 +43,27 @@ To run the test.py you will need to have a `data/MulticlassClassification/test` 
 
 ### Download trained U-net
 
-The trained Unet in the ISIC 2017 to perform the segmentation of the data by using the function segmentation on
+The trained UNet in the ISIC 2017 to perform the segmentation of the data by using the function segmentation on
 `segmentation.py` can be downloaded in the following link:
 `https://drive.google.com/file/d/1Ae0M2pNVBgbKa7b13_kmY3uYmaTv5ayK/view?usp=share_link`
 
 Once downloaded the file named `Unet_trained.tar` must be located in the project sub-folder `models`.
 
+## Run the segmentation
 
+To compute the segmentations from the trained UNet run the following lin eof code. 
 
+````commandline
+python -m segmentation.segmentation 
+````
+
+Then will prompt to specify for which challenge you want to perform the segmentation either: `BinaryClassification` or 
+`MulticlassClassification`. Then in which set either `train`, `val` or `test`.
+
+````commandline
+python -m classification_binary.train
+````
+
+````commandline
+python -m classification_multi.train
+````
