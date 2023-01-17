@@ -40,3 +40,14 @@ directory with the images you would like to test.
 The checkpoints for the multiclass classification are found in `models/MulticlassClassification/multiclass_efficient_nofreeze_multisteplr01_dropout`.
 
 To run the test.py you will need to have a `data/MulticlassClassification/test` directory with the images you would like to test.
+
+### Download trained U-net
+
+The trained Unet in the ISIC 2017 to perform the segmentation of the data by using the function segmentation on
+`segmentation.py` can be downloaded in the following link:
+`https://drive.google.com/file/d/1Ae0M2pNVBgbKa7b13_kmY3uYmaTv5ayK/view?usp=share_link`
+
+Once downloaded the file named `Unet_trained.tar` must be located in the project sub-folder `models`.
+
+
+
