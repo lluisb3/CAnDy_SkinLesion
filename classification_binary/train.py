@@ -28,7 +28,7 @@ def train_1_epoch(net, train_dataset, train_dataloader, optimizer, criterion, sc
     # 1 epoch = 1 complete loop over the dataset
     for i, (batch) in enumerate(tqdm(train_dataloader, desc='Train')):
         # get data from dataloader
-        inputs, targets = batch['image'], batch['label']
+        inputs, targets = batch['image'], batch['label'].type(torch.LongTensor)
         # move data to device
         inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
         # zero the parameter gradients
@@ -79,7 +79,7 @@ def val_1_epoch(net, val_dataset, val_dataloader, criterion, device):
         # 1 epoch = 1 complete loop over the dataset
         for batch in tqdm(val_dataloader, desc='Val'):
             # get data from dataloader
-            inputs, targets = batch['image'], batch['label']
+            inputs, targets = batch['image'], batch['label'].type(torch.LongTensor)
             # move data to device
             inputs, targets = inputs.to(device, non_blocking=True), targets.to(device, non_blocking=True)
             # obtain predictions
