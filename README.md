@@ -16,13 +16,11 @@ on dermatoscopic images that we developed for our CAD course. We finetuned diffe
 Torchvision models. The dataset used can be found on
 
 
-##Instructions
-To reproduce the results or use the trained networks available in the `models` directory, you should do:
+##Instructions for testing
+To use the trained networks available in the `models` directory, you should do:
 
 - Environmental set up
 - Download the checkpoints for the models
-- Download the example image (or provide one of your own)
-- Run the examples
 
 ### Setting up the environment
 - Create a conda environment
@@ -36,10 +34,34 @@ pip install -r requirements.txt
 ### Download checkpoints of pretrained models
 
 The checkpoints for the binary classification are found in `models/BinaryClassification/binary_efficient_unfreeze_dropout`.
-directory with the images you would like to test.
 The checkpoints for the multiclass classification are found in `models/MulticlassClassification/multiclass_efficient_nofreeze_multisteplr01_dropout`.
 
-To run the test.py you will need to have a `data/MulticlassClassification/test` directory with the images you would like to test.
+To run the `test.py` you will need to have a `data/MulticlassClassification/test` or a `data/BinaryClassification/test`  directory with the images you would like to test.
+Run the `database/metadata.py` to have the metadata.csv for the SkinDataset.
+
+##Instructions for training 
+To finetune the models or reproduce our results, you should do:
+
+- Environmental set up (same as described above)
+- Clone this repository 
+- If training the binary challenge, create a `data\BinaryClassification\train` and `data\BinaryClassification\val` directory with the images you are going to use for training and validation. 
+If training for the multiclass challenge create a `data\MulticlassClassification\train` and `data\MulticlassClassification\val` directory with the images you are going to use for training and validation. 
+- Run the `database/metadata.py` to have the metadata.csv. Use the challenge option of your like
+````commandline
+python -m database.metadata --challenge_option BinaryClassification
+````
+
+- If using segmentation follow the instructions of Download trained U-Net section.
+- Modify the config.yml.example with your desired settings for training and save it as config.yml
+- Run `classification_binary/train.py` or `classification_multi/train.py` accordingly.
+
+````commandline
+python -m classification_binary.train
+````
+
+````commandline
+python -m classification_multi.train
+````
 
 ### Download trained U-net
 
@@ -60,10 +82,3 @@ python -m segmentation.segmentation
 Then will prompt to specify for which challenge you want to perform the segmentation either: `BinaryClassification` or 
 `MulticlassClassification`. Then in which set either `train`, `val` or `test`.
 
-````commandline
-python -m classification_binary.train
-````
-
-````commandline
-python -m classification_multi.train
-````
