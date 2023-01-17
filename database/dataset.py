@@ -26,8 +26,12 @@ class SkinLesionDataset(Dataset):
         return len(self.metadata)
 
     def __getitem__(self, idx):
-        img = cv.imread(str(self.data_dir / f"{self.metadata['Lesion Type'].iloc[idx]}/"
-                         f"{self.metadata['Name'].iloc[idx]}.jpg"))  # read the image (BGR) using OpenCV (HxWxC)
+        if self.dataset_set == 'test':
+            img_dir = str(self.data_dir / f"{self.metadata['Name'].iloc[idx]}.jpg")
+        else:
+            img_dir = str(self.data_dir / f"{self.metadata['Lesion Type'].iloc[idx]}/"
+                         f"{self.metadata['Name'].iloc[idx]}.jpg")
+        img = cv.imread(img_dir)  # read the image (BGR) using OpenCV (HxWxC)
         img = cv.cvtColor(img, cv.COLOR_BGR2RGB)  # image now RGB
         if self.transform:
             img = z_score_norm(img,
